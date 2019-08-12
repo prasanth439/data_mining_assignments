@@ -10,7 +10,7 @@
 using namespace std;
 #define INPUT_FILE "input.txt"
 #define OUT_FILE "outfile.txt"
-#define SUPPORT_PERCENT "10"
+#define SUPPORT_PERCENT "20"
 
 // GLOBAL VARIABLES
 int mSupportPercent ; // for storing the support percent
@@ -275,16 +275,19 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 	{
 		if(root.headTable.mTable[i].freq<supportCount)
 		{
+			// cerr<<"For "<<root.headTable.mTable[i].key<<endl;
+			// cerr<<root.headTable.mTable[i].freq<<endl;
 			continue;
 		}
 		vector<int> temp2 = temp;
 		temp2.push_back(list[i]);
 		freq_sets.push_back(make_pair(temp2,root.headTable.mTable[i].freq));
 		FPTree nTree;
-		makeFPTree(root,list,list[i],nTree);
+		makeFPTree(root,list,i,nTree);
 		suffixTree(list,temp2,i,nTree);
 		delete_FPTree(nTree);
 	}
+	
 }
 void print_Frequent_sets()
 {
