@@ -270,7 +270,13 @@ void makeFPTree(const FPTree& A,
 
 void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 {
-
+#ifdef DEBUG
+	cerr<<"Conditional tree with nodes ";
+	for(int i=0;i<temp.size();i++)
+		cerr<<temp[i]<<" ";
+	cerr<<" is\n";
+	print_FPtree(root,list,count);
+#endif
 	for(int i = count-1;i>=0;i--)
 	{
 		if(root.headTable.mTable[i].freq<supportCount)
@@ -380,7 +386,7 @@ int main(int argc,
 		sorted_list.push_back(headfreqCount[i].first);
 	}
 #ifdef DEBUG
-	cout<<"Size of sorted array "<<sorted_list.size()<<endl;
+	cerr<<"Size of sorted array "<<sorted_list.size()<<endl;
 #endif
 	makeFPTreeFromDB (tree,sorted_list);
 	// print_FPtree(tree,sorted_list,sorted_list.size()-1);
