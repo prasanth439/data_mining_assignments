@@ -15,7 +15,7 @@ class FPTreeNode {
 			     ,linkPtr(nullptr)
 			     ,freq(-1)
 		{}
-        FPTreeNode(int lab,int fr,FPTreeNode* par):label(lab),freq(fr),parentptr(par)
+        FPTreeNode(int lab,int fr,FPTreeNode* par):label(lab),freq(fr),parentptr(par),linkPtr(nullptr)
         {}
 };
 
