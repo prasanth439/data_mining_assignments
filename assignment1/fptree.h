@@ -33,7 +33,7 @@ class Tuple{
 
 class Table{
     public:
-        unordered_map<int,int> keyMap;
+        // unordered_map<int,int> keyMap;
         vector<Tuple> mTable;
 
 };
