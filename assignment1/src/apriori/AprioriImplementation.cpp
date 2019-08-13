@@ -6,11 +6,13 @@ using namespace std;
 // Global vars
 unordered_map<string, int> frequent_itemset_count;
 set<string> frequent_itemsets;
-int MIN_SUPPORT = 1;
+int MIN_SUPPORT = 2;
 
 void printFrequentItems(){
     for (auto x : frequent_itemset_count) 
+    if(x.second>=MIN_SUPPORT){
       cout << x.first << " => " << x.second << endl; 
+    }
 }
 
 set<string> parseLine(string line){
@@ -126,7 +128,14 @@ bool optimizeApriori(string s, string s1, int k){
         return false;
     }
 }
-
+bool customsort(char a,char b){
+    if(a==' '|| b ==' '){
+        return false;
+    }
+    else{
+        return a<b;
+    }
+}
 set<string> generatenextlevelCandidate(int k){
 		
     vector<string> list(frequent_itemsets.begin(), frequent_itemsets.end());
@@ -148,9 +157,9 @@ set<string> generatenextlevelCandidate(int k){
                     tempitem = s1.substr(s1.find_last_of(" ") + 1);
                     if ( s.find(tempitem) == string::npos){
                         string temp = s + " " + tempitem;
-                        cout << temp << endl;
-                        sort(temp.begin(), temp.end()); 
+                        sort(temp.begin(), temp.end(),customsort); 
                         if (tempitemkeylist.find(temp) == tempitemkeylist.end()){
+                            // cout << temp << endl;
                             tempitemkeylist.insert(temp);
                         }
                     }
