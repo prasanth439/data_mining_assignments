@@ -140,7 +140,7 @@ bool customsort(char a,char b){
 set<string> generatenextlevelCandidate(int k){
 		
     vector<string> list(frequent_itemsets.begin(), frequent_itemsets.end());
-    set<string> tempitemkeylist;
+    set<string> tempitemkeylist = NULL;
     string tempitem;
     
     string s, s1;
