@@ -224,14 +224,14 @@ void makeFPTreeFromDB(FPTree& A,
 			}
 		}
 #ifdef DEBUG
-		count++;
-		cerr<<"# Line: "<<count<<" ==> "<<temp<<endl;
-		cerr<<"Set Formation\n";
-		for(auto a:branchNodes)
-		{
-			cerr<<a<<" ";
-		}
-		cerr<<endl;
+		// count++;
+		// cerr<<"# Line: "<<count<<" ==> "<<temp<<endl;
+		// cerr<<"Set Formation\n";
+		// for(auto a:branchNodes)
+		// {
+		// 	cerr<<a<<" ";
+		// }
+		// cerr<<endl;
 #endif
 		formTree(ARoot,branchSet,tempLinkStore,ATableTups);
 	}
@@ -330,17 +330,19 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 	{
 		if(root.headTable.mTable[i].freq<supportCount)
 		{
-			// cerr<<"For "<<root.headTable.mTable[i].key<<endl;
+			// cerr<<"For "<<root.headTable.mTable[i].key<<" ";
 			// cerr<<root.headTable.mTable[i].freq<<endl;
 			continue;
 		}
 		vector<int> temp2 = temp;
+
 		temp2.push_back(list[i]);
 		freq_sets.push_back(make_pair(temp2,root.headTable.mTable[i].freq));
 		FPTree nTree;
 		makeFPTree(root,list,i,nTree);
 		suffixTree(list,temp2,i,nTree);
 		delete_FPTree(nTree);
+		cout<<"Size "<<freq_sets.size()<<endl;
 	}
 	
 }
@@ -350,9 +352,9 @@ void print_Frequent_sets()
 	{
 		for(int j=freq_sets[i].first.size()-1;j>=0;j--)
 		{
-			cerr<<freq_sets[i].first[j]<<" ";
+			cout<<freq_sets[i].first[j]<<" ";
 		}
-		cerr<<" ==> "<<freq_sets[i].second<<endl;
+		cout<<" ==> "<<freq_sets[i].second<<endl;
 	}
 }
 int main(int argc, 
@@ -398,8 +400,8 @@ int main(int argc,
 
 	// support count
 	supportCount = (totalTransactions*mSupportPercent+99)/100;
-
 #ifdef DEBUG
+	supportCount = 50;
 	cerr<<"# Support Count "<<supportCount<<endl;
 	cerr<<"# Map checking \n";
 	cerr<<"Key\tValue\n";
@@ -441,7 +443,10 @@ int main(int argc,
 	makeFPTreeFromDB (tree,sorted_list);
 	// print_FPtree(tree,sorted_list,sorted_list.size()-1);
 	vector<int> empty_list;
+	cerr<<"ending"<<endl;
+
 	suffixTree(sorted_list,empty_list,sorted_list.size(),tree);
+	cerr<<"ended"<<endl;
 	print_Frequent_sets();
 	return 0;
 }
