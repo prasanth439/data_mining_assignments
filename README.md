@@ -7,5 +7,6 @@ COL761 Assignments
 # Mount Commands from linux
 ssh cs1160358@hpc.iitd.ac.in 
 [password]
-sshfs cs1160358@hpc.iitd.ac.in:/home/btech/cse/datamining /absolute/path/to/mount/folder
+
+sshfs cs1160358@hpc.iitd.ac.in:/home/cse/btech/cs1160358 /absolute/path/to/mount/folder
 
