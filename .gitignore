@@ -1,5 +1,7 @@
 *.dat
 Dataset
+mount
+.vscode/
 *.gz
 *.rar
 *.class

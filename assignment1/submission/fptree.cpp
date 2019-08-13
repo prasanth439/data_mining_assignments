@@ -2,27 +2,39 @@
 #include <sstream>
 #include <iostream>
 #include <unordered_map>
+#include <set>
 #include <unordered_set>
 #include <vector>
 #include <fstream>
 #include <algorithm>
+
 #define DEBUG
+
 using namespace std;
-#define INPUT_FILE "webdocs.dat"
+
+#define INPUT_FILE "input.txt"
 #define OUT_FILE "outfile.txt"
-#define SUPPORT_PERCENT "2"
+#define SUPPORT_PERCENT "10"
+
 
 // GLOBAL VARIABLES
 int mSupportPercent ; // for storing the support percent
 string mOutFile,mInFile; // input and output file
 int totalTransactions = 0;
 int supportCount = 0; // store support count
+
 vector<pair<vector<int>,int>> freq_sets;
+unordered_map<int,int> GCompare;
 // END GLOBALS
 
 /*
 	descending sort on the frequency of the items 
 */
+struct set_comparator {
+    bool operator() (int a,int  b) const {
+        return ((GCompare[a]<GCompare[b])||((GCompare[a]==GCompare[b])&&(a<b)));
+    }
+};
 bool mCustomSort ( pair<int,int>& A,
 					pair<int,int>& B)
 {
@@ -97,50 +109,80 @@ void pTokenize(const string & A,
 	To add branch to the tree when we get the set of items
 */
 void formTree(FPTreeNode* ARoot,  // root node of the tree
-				unordered_set<int>& branchNodes, // transaction details
-				vector<int>& AListNodes, // order of the elements
+				set<int,set_comparator>& branchNodes, // transaction details
 				vector<FPTreeNode*> &ATempLinks, // temporary links maker
 				vector<Tuple>& ATableTups, // table of (key,freq and sidelinkptrs)
-				int start,
-				int end,
 				int incr=1) // frequency of the set
 {
 
 	FPTreeNode* node;
-	for(int i=start;i<=end;i++){
-		if(branchNodes.find(AListNodes[i])==branchNodes.end())
+	for(auto itr:branchNodes){
+		if(ARoot->children.find(itr)==ARoot->children.end())
 		{
-			continue;
+			node = new FPTreeNode(itr,0,ARoot);
+			ARoot->children[itr] = node;
 		}
 		else{
-			if(ARoot->children.find(AListNodes[i])==ARoot->children.end())
-			{
-				node = new FPTreeNode(AListNodes[i],0,ARoot);
-				ARoot->children[AListNodes[i]] = node;
-			}
-			else{
-				node = ARoot->children[AListNodes[i]];
-			}
-			// branchNodes.erase(AListNodes[i]);
-			node->freq+=incr;
-			if(ATableTups[i].freq==0)
-			{
-				ATableTups[i].freq+=incr;
-				ATableTups[i].linkptr = node;
-				ATempLinks[i] = node;
-			}
-			else{
-				if(node->freq==incr){
-					ATempLinks[i]->linkPtr = node;
-					ATempLinks[i] = ATempLinks[i]->linkPtr;
-				}
-				ATableTups[i].freq+=incr;
-			}
-			formTree(ARoot->children[AListNodes[i]],branchNodes,AListNodes,ATempLinks,ATableTups,i+1,end,incr);
-			return ;
+			node = ARoot->children[itr];
 		}
+		node->freq+=incr;
+		int i = GCompare[itr];// Get the index from table
+		if(ATableTups[i].freq==0)
+		{
+			ATableTups[i].freq+=incr;
+			ATableTups[i].linkptr = node;
+			ATempLinks[i] = node;
+		}
+		else{
+			if(node->freq==incr){
+				ATempLinks[i]->linkPtr = node;
+				ATempLinks[i] = ATempLinks[i]->linkPtr;
+			}
+			ATableTups[i].freq+=incr;
+		}
+		ARoot = node;
 	}
 }
+
+void formTree(FPTreeNode* ARoot,  // root node of the tree
+				vector<int>& branchNodes, // transaction details
+				vector<FPTreeNode*> &ATempLinks, // temporary links maker
+				vector<Tuple>& ATableTups, // table of (key,freq and sidelinkptrs)
+				int incr=1) // frequency of the set
+{
+
+
+	FPTreeNode* node;
+	int itr;
+	for(int k = branchNodes.size()-1;k>=0;k--){
+		itr = branchNodes[k];
+		if(ARoot->children.find(itr)==ARoot->children.end())
+		{
+			node = new FPTreeNode(itr,0,ARoot);
+			ARoot->children[itr] = node;
+		}
+		else{
+			node = ARoot->children[itr];
+		}
+		node->freq+=incr;
+		int i = GCompare[itr];// Get the index from table
+		if(ATableTups[i].freq==0)
+		{
+			ATableTups[i].freq+=incr;
+			ATableTups[i].linkptr = node;
+			ATempLinks[i] = node;
+		}
+		else{
+			if(node->freq==incr){
+				ATempLinks[i]->linkPtr = node;
+				ATempLinks[i] = ATempLinks[i]->linkPtr;
+			}
+			ATableTups[i].freq+=incr;
+		}
+		ARoot = node;
+	}
+}
+
 /*
 	To make FP tree from the database 
 */
@@ -169,21 +211,28 @@ void makeFPTreeFromDB(FPTree& A,
 #endif
 	while(getline(fileScanner,temp)){
 		// make a tree here
-		unordered_set<int> branchNodes;
+		vector<int> branchNodes;
 		pTokenize(temp,limiter,branchNodes);
-
+		set<int,set_comparator> branchSet;
+		for(int i=0;i<branchNodes.size();i++)
+		{
+			if(GCompare.find(branchNodes[i])==GCompare.end())
+			{
+				continue;
+			}
+			else{
+				branchSet.insert(branchNodes[i]);
+			}
+		}
 #ifdef DEBUG
-		// count++;
-		// cerr<<"# Line: "<<count<<" ==> "<<temp<<endl;
-		// cerr<<"Set Formation\n";
-		// for(auto a:branchNodes)
-		// {
-		// 	cerr<<a<<" ";
-		// }
-		// cerr<<endl;
+		count++;
+		// cerr<<"# Line: "<<count<<endl;
 #endif
-		formTree(ARoot,branchNodes,AList,tempLinkStore,ATableTups,0,AListSize-1);
+		formTree(ARoot,branchSet,tempLinkStore,ATableTups);
 	}
+#ifdef DEBUG
+	cerr<<"Made tree successfully\n";
+#endif
 	return ;
 }
 void print_conditional_tree(const FPTree& root,int index)
@@ -232,8 +281,6 @@ void makeFPTree(const FPTree& A,
 	FPTreeNode* BRootNode = new FPTreeNode();
 	B.root = BRootNode;
 	Table& BTable = B.headTable;
-	BTable.keyMap = A.headTable.keyMap;
-
 	const vector<Tuple>& ATableTups = A.headTable.mTable;
 	vector<Tuple>& BTableTups = BTable.mTable;
 	int AListSize = AList.size();
@@ -250,20 +297,23 @@ void makeFPTree(const FPTree& A,
 	FPTreeNode* ATempAcrossLink = ATableTups[keyIndex].linkptr;
 	FPTreeNode* ATempVertLink; // temp to move up the links
 	int NodeFreq = 0;
-	vector<FPTreeNode*> BTempLinks(AListSize,nullptr); // connect across links
+	vector<FPTreeNode*> BTempLinks(keyIndex+1,nullptr); // connect across links
 	while(ATempAcrossLink!=nullptr)
 	{
-		unordered_set<int> branchNodes;
+		vector<int> branchNodes;
 		ATempVertLink = ATempAcrossLink;
 		NodeFreq = ATempVertLink->freq;
 		while(ATempVertLink->parentptr!=nullptr)
 		{
-			branchNodes.insert(ATempVertLink->label); // making the set of nodes of branch
+			branchNodes.push_back(ATempVertLink->label); // making the set of nodes of branch
 			ATempVertLink = ATempVertLink->parentptr; // moving up the links
 		}
-		formTree(BRootNode,branchNodes,AList,BTempLinks,BTableTups,0,keyIndex,NodeFreq);
+		formTree(BRootNode,branchNodes,BTempLinks,BTableTups,NodeFreq);
 		ATempAcrossLink = ATempAcrossLink->linkPtr; // moving across the links
 	}
+#ifdef DEBUG
+	cerr<<"Created tree \n";
+#endif
 	return ;
 }
 
@@ -271,11 +321,11 @@ void makeFPTree(const FPTree& A,
 void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 {
 #ifdef DEBUG
-	cerr<<"Conditional tree with nodes ";
-	for(int i=0;i<temp.size();i++)
-		cerr<<temp[i]<<" ";
-	cerr<<" is\n";
-	print_FPtree(root,list,count);
+	// cerr<<"Conditional tree with nodes ";
+	// for(int i=0;i<temp.size();i++)
+	// 	cerr<<temp[i]<<" ";
+	// cerr<<" is\n";
+	// print_FPtree(root,list,count);
 #endif
 	for(int i = count-1;i>=0;i--)
 	{
@@ -286,14 +336,13 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 			continue;
 		}
 		vector<int> temp2 = temp;
-
 		temp2.push_back(list[i]);
 		freq_sets.push_back(make_pair(temp2,root.headTable.mTable[i].freq));
 		FPTree nTree;
 		makeFPTree(root,list,i,nTree);
 		suffixTree(list,temp2,i,nTree);
 		delete_FPTree(nTree);
-		cout<<"Size "<<freq_sets.size()<<endl;
+		// cout<<"Size "<<freq_sets.size()<<endl;
 	}
 	
 }
@@ -311,7 +360,6 @@ void print_Frequent_sets()
 int main(int argc, 
 		const char *argv[])
 {
-
 	// for transactions
 	// first scan of database
 	// store support percentage
@@ -335,6 +383,7 @@ int main(int argc,
 	vector<int> store;
 	unordered_map<int,int> mMap;
 	vector<int> tempNumStore;
+	
 	char limiter = ' ';
 	
 	// counting the transactions and storing it in the map
@@ -351,22 +400,20 @@ int main(int argc,
 	// support count
 	supportCount = (totalTransactions*mSupportPercent+99)/100;
 #ifdef DEBUG
-	supportCount = 50;
+	// supportCount = 50;
 	cerr<<"# Support Count "<<supportCount<<endl;
-	cerr<<"# Map checking \n";
-	cerr<<"Key\tValue\n";
-	for(auto a:mMap)
-	{
-		cerr<<a.first<<"\t"<<a.second<<endl;
-	}
+	// for(auto a:mMap)
+	// {
+	// 	cerr<<a.first<<"\t"<<a.second<<endl;
+	// }
 #endif
 	FPTree tree; // total tree //
 	Table &tTable = tree.headTable; // temporary table
-	unordered_map<int,int> &mKeyMap = tTable.keyMap; // contains KEY || Index
+	unordered_map<int,int>& mKeyMap = GCompare; // contains KEY || Index
 	vector<pair<int,int>> headfreqCount;
 	for(auto itr = mMap.begin();itr!=mMap.end();itr++){
 		if(itr->second<supportCount){
-			mMap.erase(itr);
+			// mMap.erase(itr);
 			continue;
 		}
 		mKeyMap[itr->first] = 0;
