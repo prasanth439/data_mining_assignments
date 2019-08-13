@@ -12,9 +12,9 @@
 
 using namespace std;
 
-#define INPUT_FILE "input.txt"
+#define INPUT_FILE "webdocs.dat"
 #define OUT_FILE "outfile.txt"
-#define SUPPORT_PERCENT "10"
+#define SUPPORT_PERCENT "20"
 
 
 // GLOBAL VARIABLES
@@ -151,6 +151,7 @@ void formTree(FPTreeNode* ARoot,  // root node of the tree
 				int incr=1) // frequency of the set
 {
 
+
 	FPTreeNode* node;
 	int itr;
 	for(int k = branchNodes.size()-1;k>=0;k--){
@@ -224,17 +225,14 @@ void makeFPTreeFromDB(FPTree& A,
 			}
 		}
 #ifdef DEBUG
-		// count++;
-		// cerr<<"# Line: "<<count<<" ==> "<<temp<<endl;
-		// cerr<<"Set Formation\n";
-		// for(auto a:branchNodes)
-		// {
-		// 	cerr<<a<<" ";
-		// }
-		// cerr<<endl;
+		count++;
+		// cerr<<"# Line: "<<count<<endl;
 #endif
 		formTree(ARoot,branchSet,tempLinkStore,ATableTups);
 	}
+#ifdef DEBUG
+	cerr<<"Made tree successfully\n";
+#endif
 	return ;
 }
 void print_conditional_tree(const FPTree& root,int index)
@@ -313,6 +311,9 @@ void makeFPTree(const FPTree& A,
 		formTree(BRootNode,branchNodes,BTempLinks,BTableTups,NodeFreq);
 		ATempAcrossLink = ATempAcrossLink->linkPtr; // moving across the links
 	}
+#ifdef DEBUG
+	cerr<<"Created tree \n";
+#endif
 	return ;
 }
 
@@ -320,11 +321,11 @@ void makeFPTree(const FPTree& A,
 void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 {
 #ifdef DEBUG
-	cerr<<"Conditional tree with nodes ";
-	for(int i=0;i<temp.size();i++)
-		cerr<<temp[i]<<" ";
-	cerr<<" is\n";
-	print_FPtree(root,list,count);
+	// cerr<<"Conditional tree with nodes ";
+	// for(int i=0;i<temp.size();i++)
+	// 	cerr<<temp[i]<<" ";
+	// cerr<<" is\n";
+	// print_FPtree(root,list,count);
 #endif
 	for(int i = count-1;i>=0;i--)
 	{
@@ -335,14 +336,13 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 			continue;
 		}
 		vector<int> temp2 = temp;
-
 		temp2.push_back(list[i]);
 		freq_sets.push_back(make_pair(temp2,root.headTable.mTable[i].freq));
 		FPTree nTree;
 		makeFPTree(root,list,i,nTree);
 		suffixTree(list,temp2,i,nTree);
 		delete_FPTree(nTree);
-		cout<<"Size "<<freq_sets.size()<<endl;
+		// cout<<"Size "<<freq_sets.size()<<endl;
 	}
 	
 }
@@ -360,7 +360,6 @@ void print_Frequent_sets()
 int main(int argc, 
 		const char *argv[])
 {
-
 	// for transactions
 	// first scan of database
 	// store support percentage
@@ -401,14 +400,12 @@ int main(int argc,
 	// support count
 	supportCount = (totalTransactions*mSupportPercent+99)/100;
 #ifdef DEBUG
-	supportCount = 50;
+	// supportCount = 50;
 	cerr<<"# Support Count "<<supportCount<<endl;
-	cerr<<"# Map checking \n";
-	cerr<<"Key\tValue\n";
-	for(auto a:mMap)
-	{
-		cerr<<a.first<<"\t"<<a.second<<endl;
-	}
+	// for(auto a:mMap)
+	// {
+	// 	cerr<<a.first<<"\t"<<a.second<<endl;
+	// }
 #endif
 	FPTree tree; // total tree //
 	Table &tTable = tree.headTable; // temporary table
@@ -416,7 +413,7 @@ int main(int argc,
 	vector<pair<int,int>> headfreqCount;
 	for(auto itr = mMap.begin();itr!=mMap.end();itr++){
 		if(itr->second<supportCount){
-			mMap.erase(itr);
+			// mMap.erase(itr);
 			continue;
 		}
 		mKeyMap[itr->first] = 0;
