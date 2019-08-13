@@ -11,9 +11,7 @@ double support_thershold;
 
 void printFrequentItems(){
     for (auto x : frequent_itemset_count) 
-    if(x.second>=MIN_SUPPORT){
       cout << x.first << " => " << x.second << endl; 
-    }
 }
 
 set<string> parseLine(string line){
@@ -28,29 +26,45 @@ set<string> parseLine(string line){
 	//  TreeSet<String> sortedSet = new TreeSet<String>(set);  doubt
 	return set;
 }
+void tokenizeLine(string line,vector<string> &tokline){
+    char* st = strtok(&line[0]," ");
+    while (st != NULL)
+    {
+        // cout << st << endl;
+        tokline.push_back(st);
+        st = strtok(NULL," ");
+    }
 
-bool isSubSequence(string str1, string str2, int m, int n) 
+}
+
+bool isExisting(vector<string> str1,vector<string> tokline) 
 { 
-    // Base Cases 
-    if (m == 0)  
-        return true; 
-    if (n == 0)  
-        return false; 
-            
-    // If last characters of two strings are matching 
-    if (str1[m-1] == str2[n-1]) 
-        return isSubSequence(str1, str2, m-1, n-1); 
-
-    // If last characters are not matching 
-    return isSubSequence(str1, str2, m, n-1); 
+    for(auto s1: str1){
+        bool exist = false;
+        for(auto s2:tokline){
+            if(s1.compare(s2)==0){
+                exist = true;
+                break;
+            }
+        }
+        if(exist==false){
+            return false;
+        }    
+    }
+    return true;
 } 
 
 void updateFrequentItemSet(string line, int k){
 		
     string itemkey; 
+    vector<string> tokline;
+    tokenizeLine(line,tokline);
+
     for (auto it=frequent_itemsets.begin(); it != frequent_itemsets.end(); ++it) 
     {
-        if (isSubSequence( *it, line,  (*it).length(), line.length())) {	
+        vector<string> tokstr1;
+        tokenizeLine(*it,tokstr1);
+        if (isExisting( tokstr1, tokline)) {	
             if (frequent_itemset_count.find(*it) != frequent_itemset_count.end() ) {
                 frequent_itemset_count[*it] = frequent_itemset_count[*it] + 1;	
             } else {
@@ -67,7 +81,8 @@ void updateFrequentItemSet(set<string> set){
         if ( frequent_itemset_count.find(*it) != frequent_itemset_count.end() ) {
             frequent_itemset_count[*it] = frequent_itemset_count[*it] + 1;	
         } else {
-            frequent_itemset_count[*it] = 1;		
+            frequent_itemset_count[*it] = 1;
+            frequent_itemsets.insert(*it);
         }
     }
 }
@@ -115,6 +130,7 @@ set<string> pruning(){
     } 
     return pruneditemkeylist;
 }
+
 bool optimizeApriori(string s, string s1, int k){
       
     if (k == 2){
@@ -122,13 +138,13 @@ bool optimizeApriori(string s, string s1, int k){
     }
     string s_temp = s.substr(0, s.find_last_of(" "));
     string s1_temp = s1.substr(0, s1.find_last_of(" "));
-    
     if (s_temp.compare(s1_temp)==0){
         return true;
     } else {
         return false;
     }
 }
+
 bool customsort(char a,char b){
     if(a==' '|| b ==' '){
         return false;
@@ -141,28 +157,31 @@ set<string> generatenextlevelCandidate(int k){
 		
     vector<string> list(frequent_itemsets.begin(), frequent_itemsets.end());
     set<string> tempitemkeylist;
-    string tempitem;
+    string tempitem1,tempitem;
     
     string s, s1;
     if(list.size()==0){
         return tempitemkeylist;
     }
     else{
-
         for (int i = 0; i < list.size()-1 ; i++){
             s = list[i];
             
             for (int j = i + 1; j < list.size() ; j++){
                 s1 = list[j];
                 if (optimizeApriori(s, s1, k)){
-                    tempitem = s1.substr(s1.find_last_of(" ") + 1);
-                    if ( s.find(tempitem) == string::npos){
-                        string temp = s + " " + tempitem;
-                        sort(temp.begin(), temp.end(),customsort); 
-                        if (tempitemkeylist.find(temp) == tempitemkeylist.end()){
-                            // cout << temp << endl;
-                            tempitemkeylist.insert(temp);
-                        }
+                    tempitem1 = s1.substr(s1.find_last_of(" ") + 1);
+                    tempitem = s.substr(s.find_last_of(" ") + 1);
+                    string temp ;
+                    if(s.substr(s.find_last_of(" ") + 1) < tempitem1){
+                        temp = s + " " + tempitem1;
+                    }
+                    else{
+                        temp = s1 + " " + tempitem;
+                    }
+                    // sort(temp.begin(), temp.end(),customsort); 
+                    if (tempitemkeylist.find(temp) == tempitemkeylist.end()){
+                        tempitemkeylist.insert(temp);
                     }
                 }
             }
@@ -179,17 +198,19 @@ map<string, int> parseFile(string path)
         if (k == 1){
             IterateFileLinebyLine(path, k);
 
-            set<string> temp;
-            for (auto i : frequent_itemset_count) {
-                temp.insert(i.first);
-            }
-            frequent_itemsets = temp;
+            // set<string> temp;
+            // for (auto i : frequent_itemset_count) {
+            //     temp.insert(i.first);
+            // }
+            // frequent_itemsets = temp;
             // frequent_itemsets = frequent_itemset_count.keySet();  doubt
+            frequent_itemsets = pruning();
+
             k++;
         } else {
-            frequent_itemsets = pruning();
             frequent_itemsets = generatenextlevelCandidate(k);
             IterateFileLinebyLine(path, k); // change the update itemwise count 
+            frequent_itemsets = pruning();
             k++;
         }
     } while (frequent_itemsets.size() > 0);
@@ -197,7 +218,18 @@ map<string, int> parseFile(string path)
 
     return theMap;
 }
+// void readdb(string path){
 
+//  ifstream read;
+//     set<string> set;
+//     string line;
+//     read.open(path);
+//     if(read.is_open()){        
+//         while(getline (read,line)){
+           
+//         }
+//     }
+// }
 
 int main(int argc,const char* argv[])
 {
@@ -205,13 +237,14 @@ int main(int argc,const char* argv[])
 // ./$apriEXE $number $dataset $filename
     if (argc==4)
     {
-       support_thershold = atof(argv[1]);
+       MIN_SUPPORT = atof(argv[1]);
        in_file = argv[2];
        out_file = argv[3];
     }
     else{
         cerr<<"Insufficient or More arguments\n";
     }
+    // readdb(in_file);
     parseFile(in_file);
     printFrequentItems();
 
