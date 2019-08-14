@@ -19,12 +19,12 @@ using namespace std;
 
 // GLOBAL VARIABLES
 int mSupportPercent ; // for storing the support percent
-string mOutFile,mInFile; // input and output file
+FileName mOutFile,mInFile; // input and output file
 int totalTransactions = 0;
 int supportCount = 0; // store support count
 
-vector<pair<vector<int>,int>> freq_sets;
-unordered_map<int,int> GCompare;
+FrequentItemList<pair<Items,Frequency>> item_list;
+HashTable<int,int> GCompare;
 // END GLOBALS
 
 /*
@@ -335,9 +335,9 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 			// cerr<<root.headTable.mTable[i].freq<<endl;
 			continue;
 		}
-		vector<int> temp2 = temp;
+		Items temp2 = temp;
 		temp2.push_back(list[i]);
-		freq_sets.push_back(make_pair(temp2,root.headTable.mTable[i].freq));
+		item_list.push_back(make_pair(temp2,root.headTable.mTable[i].freq));
 		FPTree nTree;
 		makeFPTree(root,list,i,nTree);
 		suffixTree(list,temp2,i,nTree);
@@ -348,13 +348,15 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 }
 void print_Frequent_sets()
 {
-	for(int i=0;i<freq_sets.size();i++)
+	ListNode<pair<Items,Frequency>>* temp= item_list.head;
+	while(temp!=nullptr)
 	{
-		for(int j=freq_sets[i].first.size()-1;j>=0;j--)
+		for(int j=temp->data.first.size()-1;j>=0;j--)
 		{
-			cout<<freq_sets[i].first[j]<<" ";
+			cout<<temp->data.first[j]<<" ";
 		}
-		cout<<" ==> "<<freq_sets[i].second<<endl;
+		cout<<" ==> "<<temp->data.second<<endl;
+		temp = temp->next;
 	}
 }
 int main(int argc, 
@@ -371,6 +373,7 @@ int main(int argc,
 	mSupportPercent = stoi(argv[1]);
 	mInFile = argv[2];
 	mOutFile = argv[3];
+	int mode = stoi(argv[4]);
 #else
 	mSupportPercent = stoi(SUPPORT_PERCENT);
 	mInFile = INPUT_FILE;
@@ -440,10 +443,9 @@ int main(int argc,
 	makeFPTreeFromDB (tree,sorted_list);
 	// print_FPtree(tree,sorted_list,sorted_list.size()-1);
 	vector<int> empty_list;
-	cerr<<"ending"<<endl;
-
+	// cerr<<"ending"<<endl;
 	suffixTree(sorted_list,empty_list,sorted_list.size(),tree);
-	cerr<<"ended"<<endl;
+	// cerr<<"ended"<<endl;
 	print_Frequent_sets();
 	return 0;
 }
