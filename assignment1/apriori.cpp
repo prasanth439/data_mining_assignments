@@ -41,7 +41,7 @@ void tokenizeLineandUpdate(string line){
             frequent_itemset_count[st] = frequent_itemset_count[st] + 1;	
         } else {
             frequent_itemset_count[st] = 1;
-            frequent_itemsets.insert(st);
+            frequent_itemsets.insert(st); // for the first time.... one time occuring 
         }
         st = strtok(NULL," ");
     }
@@ -121,24 +121,18 @@ void IterateFileLinebyLine(string path, int k){
         cout<< "input file error"<<endl;
     }   
 }
-void pruningFreqCount(set<string> &freq ){ 
-    set<string>pruneditemkeylist;
-    for (auto it=frequent_itemsets.begin(); it != frequent_itemsets.end(); ++it) 
-    {
-        if (frequent_itemset_count.find(*it)!= frequent_itemset_count.end() 
-                && frequent_itemset_count[*it] >= MIN_SUPPORT){
-            pruneditemkeylist.insert(*it);
-        }
-    }
-    freq = pruneditemkeylist; 
-}
+
 void pruning(set<string> &freq ){ 
     set<string>pruneditemkeylist;
+    // need to prune freq_item_count searching uneccesary maps
     for (auto it=frequent_itemsets.begin(); it != frequent_itemsets.end(); ++it) 
     {
-        if (frequent_itemset_count.find(*it)!= frequent_itemset_count.end() 
-                && frequent_itemset_count[*it] >= MIN_SUPPORT){
-            pruneditemkeylist.insert(*it);
+        if (frequent_itemset_count.find(*it)!= frequent_itemset_count.end()){
+            if(frequent_itemset_count[*it] >= MIN_SUPPORT){
+                pruneditemkeylist.insert(*it);
+            }else{
+                frequent_itemset_count.erase(*it);
+            }
         }
     }
     freq = pruneditemkeylist; 
@@ -209,7 +203,7 @@ map<string, int> parseFile(string path)
     do {
         if (k == 1){
             IterateFileLinebyLine(path, k);
-            pruningFreqCount(frequent_itemsets);
+            pruning(frequent_itemsets);
             k++;
         } else {
             frequent_itemsets = generatenextlevelCandidate(k);

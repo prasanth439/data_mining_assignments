@@ -19,11 +19,10 @@ int main (int argc,const char* argv[]) {
   	myfile.open (filename);
   
     while(num_of_trans--){
-		int count = rand()%range;
-		myfile << rand()%range;
-		for(int i =0;i<count+2;i++)
-			myfile << " ";
-			myfile << rand()%range;
+		int count = rand()%range + 1;
+		while(count--){
+			myfile << (count+1) <<" ";
+		}
 		myfile<<endl;
 	}
   	myfile.close();

@@ -14,7 +14,7 @@ using namespace std;
 
 #define INPUT_FILE "input.txt"
 #define OUT_FILE "outfile.txt"
-#define SUPPORT_PERCENT "10"
+#define SUPPORT_PERCENT "20"
 
 
 // GLOBAL VARIABLES
