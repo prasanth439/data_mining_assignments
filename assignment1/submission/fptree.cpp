@@ -12,7 +12,7 @@
 
 using namespace std;
 
-#define INPUT_FILE "webdocs.dat"
+#define INPUT_FILE "input.txt"
 #define OUT_FILE "outfile.txt"
 #define SUPPORT_PERCENT "20"
 
