@@ -12,9 +12,9 @@
 
 using namespace std;
 
-#define INPUT_FILE "input.txt"
+#define INPUT_FILE "../100_100.txt"
 #define OUT_FILE "outfile.txt"
-#define SUPPORT_PERCENT "20"
+#define SUPPORT_PERCENT "1"
 
 
 // GLOBAL VARIABLES
