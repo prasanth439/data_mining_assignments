@@ -15,15 +15,9 @@ using namespace std;
 
 #define INPUT_FILE "../100_100.txt"
 #define OUT_FILE "outfile.txt"
-<<<<<<< HEAD
 #define SUPPORT_PERCENT "20"
 #define TIMEOUT_TIME 1680
 #define FLUSH_FREQ 10000
-=======
-#define SUPPORT_PERCENT "1"
-
-
->>>>>>> a0c31d6b919d2a3f9fc0a44c474cbb3b3f0a27a4
 // GLOBAL VARIABLES
 int mSupportPercent ; // for storing the support percent
 FileName mOutFile,mInFile; // input and output file
@@ -409,7 +403,9 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 		if(check_time())
 		{
 			flush_data(mode);
-			ofle<<end_time-start_time<<"\n";
+			if(!mode){
+				ofle<<end_time-start_time<<"\n";
+			}
 			ofle.close();
 			exit(0);
 		}
