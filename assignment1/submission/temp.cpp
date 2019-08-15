@@ -1,4 +1,5 @@
 #include<bits/stdc++.h>
+#include<fstream>
 using namespace std;
 
 void fn(int i,int end,vector<int> temp,vector<int>& inp)
@@ -29,9 +30,10 @@ void fn(int i,int end,vector<int> temp,vector<int>& inp)
         fn(j+1,end+1,temp,inp);
     }
 }
-int main(){
-    vector<int> input = {1,2,3,4,5,6,7,8};
-    vector<int> temp;
-    int k;
-    fn(0,input.size()-k,temp,input);
+int main (int argc, const char* argv[])
+{
+    string file_name = "Helloworld1.temp";
+    ofstream ofle(file_name, ios::app);
+    ofle<<"Happy Raksha Bandan"<<endl;
+    return 0;
 }

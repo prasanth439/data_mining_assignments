@@ -7,6 +7,7 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <ctime>
 
 #define DEBUG
 
@@ -15,14 +16,17 @@ using namespace std;
 #define INPUT_FILE "input.txt"
 #define OUT_FILE "outfile.txt"
 #define SUPPORT_PERCENT "20"
-
-
+#define TIMEOUT_TIME 1680
+#define FLUSH_FREQ 10000
 // GLOBAL VARIABLES
 int mSupportPercent ; // for storing the support percent
 FileName mOutFile,mInFile; // input and output file
 int totalTransactions = 0;
 int supportCount = 0; // store support count
-
+time_t start_time,end_time;
+ofstream ofle; // open file 
+long long branch_count = 0;
+int mode;
 FrequentItemList<pair<Items,Frequency>> item_list;
 HashTable<int,int> GCompare;
 // END GLOBALS
@@ -143,15 +147,37 @@ void formTree(FPTreeNode* ARoot,  // root node of the tree
 		ARoot = node;
 	}
 }
+// void prune(FPTree& A)
+// {
+// 	vector<Tuple>& ATable = A.headTable.mTable;
+// 	int size = ATable.size();
+// 	for(int i=size-1;i>=0;i--)
+// 	{
+// 		if(ATable[i].freq<supportCount)
+// 		{
+// 			// removing the links of the pointers
+// 			FPTreeNode* temp = ATable[i].linkptr;
+// 			FPTreeNode* temp2;
+// 			FPTreeNode* parent;
+			
+// 			while(temp!=nullptr)
+// 			{
+// 				temp2 = temp->linkPtr;
+// 				parent = temp->parentptr;
+// 				unordered_map<int,FPTreeNode*> temp_children = temp->children;
 
+// 				delete temp;
+// 				temp = temp2;
+// 			}
+// 		}
+// 	}
+// }
 void formTree(FPTreeNode* ARoot,  // root node of the tree
 				vector<int>& branchNodes, // transaction details
 				vector<FPTreeNode*> &ATempLinks, // temporary links maker
 				vector<Tuple>& ATableTups, // table of (key,freq and sidelinkptrs)
 				int incr=1) // frequency of the set
 {
-
-
 	FPTreeNode* node;
 	int itr;
 	for(int k = branchNodes.size()-1;k>=0;k--){
@@ -305,7 +331,9 @@ void makeFPTree(const FPTree& A,
 		NodeFreq = ATempVertLink->freq;
 		while(ATempVertLink->parentptr!=nullptr)
 		{
-			branchNodes.push_back(ATempVertLink->label); // making the set of nodes of branch
+			if(ATableTups[GCompare[ATempVertLink->label]].freq >= supportCount){
+				branchNodes.push_back(ATempVertLink->label); // making the set of nodes of branch
+			}
 			ATempVertLink = ATempVertLink->parentptr; // moving up the links
 		}
 		formTree(BRootNode,branchNodes,BTempLinks,BTableTups,NodeFreq);
@@ -317,7 +345,33 @@ void makeFPTree(const FPTree& A,
 	return ;
 }
 
-
+void flush_data(bool realFlush=true)
+{
+	ListNode<pair<vector<int>,int>>* temp = item_list.head,*temp2;
+	while(temp!=nullptr)
+	{
+		temp2 = temp;
+		if(realFlush){
+			pair<vector<int>,int>& dat = temp->data;
+			vector<int>& datvec = dat.first;
+			vector<string> datstr;
+			for(auto a:datvec)
+			{
+				datstr.push_back(to_string(a));
+			}
+			sort(datstr.begin(),datstr.end());
+			for(auto b:datstr)
+			{
+				ofle<<b<<" ";
+			}
+			ofle<<"\n";
+		}
+		delete temp;
+		temp = temp2->next;
+	}
+	item_list.head = item_list.tail = nullptr;
+	item_list.size = 0;
+}
 void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 {
 #ifdef DEBUG
@@ -335,11 +389,24 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 			// cerr<<root.headTable.mTable[i].freq<<endl;
 			continue;
 		}
+		branch_count++;
 		Items temp2 = temp;
 		temp2.push_back(list[i]);
 		item_list.push_back(make_pair(temp2,root.headTable.mTable[i].freq));
+		if(branch_count%FLUSH_FREQ==0)
+		{
+			flush_data(mode);
+			branch_count = 0;
+		}
 		FPTree nTree;
 		makeFPTree(root,list,i,nTree);
+		if(check_time())
+		{
+			flush_data(mode);
+			ofle<<end_time-start_time<<"\n";
+			ofle.close();
+			exit(0);
+		}
 		suffixTree(list,temp2,i,nTree);
 		delete_FPTree(nTree);
 		// cout<<"Size "<<freq_sets.size()<<endl;
@@ -359,13 +426,23 @@ void print_Frequent_sets()
 		temp = temp->next;
 	}
 }
+bool check_time()
+{
+	time(&end_time);
+	if ((end_time-start_time) >TIMEOUT_TIME)
+	{
+		return true;
+	}
+	return false;
+}
 int main(int argc, 
 		const char *argv[])
 {
 	// for transactions
 	// first scan of database
 	// store support percentage
-#ifndef DEBUG
+	time(&start_time);
+#ifdef DEBUG
 	if(argc<4){
 		cerr<<__LINE__+" "<<"insufficient arguements\n";
 		exit(0);
@@ -373,7 +450,8 @@ int main(int argc,
 	mSupportPercent = stoi(argv[1]);
 	mInFile = argv[2];
 	mOutFile = argv[3];
-	int mode = stoi(argv[4]);
+	mode = stoi(argv[4]);
+	ofle.open(mOutFile,ios::app);
 #else
 	mSupportPercent = stoi(SUPPORT_PERCENT);
 	mInFile = INPUT_FILE;
@@ -386,9 +464,7 @@ int main(int argc,
 	vector<int> store;
 	unordered_map<int,int> mMap;
 	vector<int> tempNumStore;
-	
 	char limiter = ' ';
-	
 	// counting the transactions and storing it in the map
 	while(getline(mScanner,temp)){
 		store.resize(0);
@@ -443,9 +519,15 @@ int main(int argc,
 	makeFPTreeFromDB (tree,sorted_list);
 	// print_FPtree(tree,sorted_list,sorted_list.size()-1);
 	vector<int> empty_list;
-	// cerr<<"ending"<<endl;
 	suffixTree(sorted_list,empty_list,sorted_list.size(),tree);
-	// cerr<<"ended"<<endl;
-	print_Frequent_sets();
+	flush_data(mode);
+	if(mode){
+		
+	}
+	else{
+		ofle<<end_time-start_time<<"\n";
+		ofle.close();
+	}
+	// print_Frequent_sets();
 	return 0;
 }
