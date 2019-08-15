@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <ctime>
 
-#define DEBUG
+// #define DEBUG
 
 using namespace std;
 
@@ -39,6 +39,17 @@ struct set_comparator {
         return ((GCompare[a]<GCompare[b])||((GCompare[a]==GCompare[b])&&(a<b)));
     }
 };
+
+bool check_time()
+{
+	time(&end_time);
+	if ((end_time-start_time) >TIMEOUT_TIME)
+	{
+		return true;
+	}
+	return false;
+}
+
 bool mCustomSort ( pair<int,int>& A,
 					pair<int,int>& B)
 {
@@ -340,7 +351,7 @@ void makeFPTree(const FPTree& A,
 		ATempAcrossLink = ATempAcrossLink->linkPtr; // moving across the links
 	}
 #ifdef DEBUG
-	cerr<<"Created tree \n";
+	// cerr<<"Created tree \n";
 #endif
 	return ;
 }
@@ -348,11 +359,9 @@ void makeFPTree(const FPTree& A,
 void flush_data(bool realFlush=true)
 {
 	ListNode<pair<vector<int>,int>>* temp = item_list.head,*temp2;
-	string temp3 = "";
 	while(temp!=nullptr)
 	{
-		temp2 = temp;
-		
+		temp2 = temp->next;
 		if(realFlush){
 			pair<vector<int>,int>& dat = temp->data;
 			vector<int>& datvec = dat.first;
@@ -365,13 +374,11 @@ void flush_data(bool realFlush=true)
 			for(auto b:datstr)
 			{
 				ofle<<b<<" ";
-				// temp3+=b+" ";
 			}
 			ofle<<"\n";
-			// temp3+="\n";
 		}
 		delete temp;
-		temp = temp2->next;
+		temp = temp2;
 	}
 	item_list.head = item_list.tail = nullptr;
 	item_list.size = 0;
@@ -413,6 +420,14 @@ void suffixTree(vector<int>& list,vector<int> temp,int count,const FPTree& root)
 			ofle.close();
 			exit(0);
 		}
+#ifdef DEBUG
+		for(int j=GCompare[temp2[0]];j<list.size();j++)
+		{
+			cerr<<"=";
+		}
+		cerr<<list.size()-GCompare[temp2[0]]<<"/"<<list.size();
+		cerr<<"\r";
+#endif
 		suffixTree(list,temp2,i,nTree);
 		delete_FPTree(nTree);
 		// cout<<"Size "<<freq_sets.size()<<endl;
@@ -432,15 +447,7 @@ void print_Frequent_sets()
 		temp = temp->next;
 	}
 }
-bool check_time()
-{
-	time(&end_time);
-	if ((end_time-start_time) >TIMEOUT_TIME)
-	{
-		return true;
-	}
-	return false;
-}
+
 int main(int argc, 
 		const char *argv[])
 {
@@ -448,7 +455,7 @@ int main(int argc,
 	// first scan of database
 	// store support percentage
 	time(&start_time);
-#ifdef DEBUG
+#ifndef DEBUG
 	if(argc<4){
 		cerr<<__LINE__+" "<<"insufficient arguements\n";
 		exit(0);
@@ -532,8 +539,8 @@ int main(int argc,
 	}
 	else{
 		ofle<<end_time-start_time<<"\n";
-		ofle.close();
 	}
+	ofle.close();
 	// print_Frequent_sets();
 	return 0;
 }

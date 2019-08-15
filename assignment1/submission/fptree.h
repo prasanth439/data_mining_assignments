@@ -15,13 +15,6 @@ class ListNode{
 		}
 		ListNode(T d,ListNode<T>* n):data(d),next(n)
 		{}
-		~ListNode()
-		{
-			if(next!=nullptr)
-			{
-				delete next;
-			}
-		}
 };
 template <typename T>
 class LinkedList{
@@ -82,6 +75,7 @@ class FPTreeNode {
 		{}
         FPTreeNode(int lab,int fr,FPTreeNode* par):label(lab),freq(fr),parentptr(par),linkPtr(nullptr)
         {}
+		
 };
 
 class Tuple{
