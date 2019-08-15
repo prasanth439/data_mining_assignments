@@ -32,8 +32,14 @@ void fn(int i,int end,vector<int> temp,vector<int>& inp)
 }
 int main (int argc, const char* argv[])
 {
-    string file_name = "Helloworld1.temp";
-    ofstream ofle(file_name, ios::app);
-    ofle<<"Happy Raksha Bandan"<<endl;
+    // string file_name = "Helloworld1.temp";
+    // ofstream ofle(file_name, ios::app);
+    // ofle<<"Happy Raksha Bandan"<<endl;
+
+    set<string> myset;
+    myset.insert("1");
+    myset.insert("2");
+    myset.insert("1");
+    cout<< myset.size();
     return 0;
 }

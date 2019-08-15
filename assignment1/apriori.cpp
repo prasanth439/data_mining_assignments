@@ -68,7 +68,9 @@ void tokenizeLine(string line,vector<string> &tokline){
     char* st = strtok(&line[0]," ");
     while (st != NULL)
     {
-        tokline.push_back(st);
+        if(frequent_itemset_count.find(st)!=frequent_itemset_count.end()){
+            tokline.push_back(st);
+        }
         st = strtok(NULL," ");
     }
 
