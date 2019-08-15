@@ -13,11 +13,17 @@
 
 using namespace std;
 
-#define INPUT_FILE "input.txt"
+#define INPUT_FILE "../100_100.txt"
 #define OUT_FILE "outfile.txt"
+<<<<<<< HEAD
 #define SUPPORT_PERCENT "20"
 #define TIMEOUT_TIME 1680
 #define FLUSH_FREQ 10000
+=======
+#define SUPPORT_PERCENT "1"
+
+
+>>>>>>> a0c31d6b919d2a3f9fc0a44c474cbb3b3f0a27a4
 // GLOBAL VARIABLES
 int mSupportPercent ; // for storing the support percent
 FileName mOutFile,mInFile; // input and output file

@@ -5,3 +5,4 @@ mount
 *.gz
 *.rar
 *.class
+*.out
