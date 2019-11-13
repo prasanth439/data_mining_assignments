@@ -7,3 +7,5 @@ mount
 *.class
 *.out
 *.txt
+__pycache__/
+dataset/
