@@ -19,27 +19,41 @@ from model import *
 from data import *
 from args import Args
 import networkx as nx
-def get_label_graph(adj,node_labels,lab_adj):
+count_graphs = 0
+def get_label_graph(adj,node_labels,lab_adj,args):
     '''
     get a graph from zero-padded adj
     :param adj:
     :return:
     '''
     # remove all zeros rows and column
+    global count_graphs
+    count_graphs +=1
+    print('graph created %d'%count_graphs)
+    if count_graphs%300==0:
+        print('graph created %d'%count_graphs)
+    node_map = args.node_rev_map
+    edge_map = args.edge_rev_map
     adj = adj[~np.all(adj == 0, axis=1)]
     adj = adj[:, ~np.all(adj == 0, axis=0)]
-    lab_adj = lab_adj[~np.all(lab_adj == 0, axis=1)]
+    node_cat = ~np.all(lab_adj == 0, axis=1)
+    
+    lab_adj = lab_adj[node_cat]
     lab_adj = lab_adj[:, ~np.all(lab_adj == 0, axis=0)]
     adj = np.asmatrix(adj)
+    node_labels = np.insert(node_labels,0,1)
+    node_labels = node_labels[node_cat]
+    node_labels = node_labels.tolist()
     G = nx.from_numpy_matrix(adj)
-    label_dict = dict(zip([i for i in range(adj.shape[0])],node_labels[:adj.shape[0]]))
+    node_labels = list(map(lambda a : node_map[int(a)-1],node_labels))
+    label_dict = dict(zip([i for i in range(adj.shape[0])],node_labels))
     nx.set_node_attributes(G,label_dict,name='label')
     edge_label_dict = dict()
     # print(adj.shape[0],adj.shape[1])
     for i in range(adj.shape[0]):
         for j in range(i+1,adj.shape[1]):
             if adj[i,j]==1:
-                edge_label_dict[(i,j)] = lab_adj[i,j]
+                edge_label_dict[(i,j)] = edge_map[int(lab_adj[i,j])-1]
     nx.set_edge_attributes(G,edge_label_dict,'label')
     return G
 
@@ -56,7 +70,7 @@ def train_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,data_loader,
     node_mlp.train()
     edge_mlp.train()
     criteron = nn.CrossEntropyLoss().cuda()
-    activ = nn.Sigmoid()
+    activ = nn.Softmax(dim=1)
     activ_2 = nn.Softmax(dim=1)
     loss_sum = 0
     for batch_idx, data in enumerate(data_loader):
@@ -122,7 +136,8 @@ def train_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,data_loader,
 
         # if using ground truth to train
         h,graph_level_hidden = rnn(x, pack=True, input_len=y_len, get_hidden=True)
-        graph_level_hidden = graph_level_hidden.clone().detach()
+        graph_level_hidden = graph_level_hidden.clone()
+        # graph_level_hidden = graph_level_hidden.clone().detach()
         # graph_level_hidden.grad.data.zero_()
         # print(graph_level_hidden)
         node_label_input = pack_padded_sequence(graph_level_hidden,y_len,batch_first=True).data
@@ -130,7 +145,6 @@ def train_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,data_loader,
         node_output_markers = pack_padded_sequence(lab_sorted,y_len,batch_first=True).data
         node_label_input = Variable(node_label_input).cuda()
         node_output_markers = Variable(node_output_markers).cuda()
-        node_label_predict = node_mlp(node_label_input)
         h = pack_padded_sequence(h,y_len,batch_first=True).data # get packed hidden vector
         # reverse h
         idx = [i for i in range(h.size(0) - 1, -1, -1)]
@@ -140,13 +154,13 @@ def train_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,data_loader,
         output.hidden = torch.cat((h.view(1,h.size(0),h.size(1)),hidden_null),dim=0) # num_layers, batch_size, hidden_size
         # print(' size of output_hidden is {}'.format(output.hidden.size()))
         y_pred,edge_level_hidden = output(output_x, pack=True, input_len=output_y_len,get_hidden = True)
-        edge_level_hidden = edge_level_hidden.clone().detach()
+        edge_level_hidden = edge_level_hidden.clone()
+        # edge_level_hidden = edge_level_hidden.clone().detach()
         edge_label_input = pack_padded_sequence(edge_level_hidden,output_y_len,batch_first=True).data
         edge_output_markers = pack_padded_sequence(edge_reshape,output_y_len,batch_first=True).data
         edge_output_markers = edge_output_markers.view(-1)
         edge_label_input = Variable(edge_label_input).cuda()
         edge_output_markers = Variable(edge_output_markers).cuda()
-        edge_label_predict = edge_mlp(edge_label_input)
         y_pred = F.sigmoid(y_pred)
         # clean
         y_pred = pack_padded_sequence(y_pred, output_y_len, batch_first=True)
@@ -158,25 +172,27 @@ def train_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,data_loader,
         loss.backward()
 
         # for node labels loss
+        node_label_predict = node_mlp(node_label_input)
         node_label_predict = activ(node_label_predict)
         loss_node_label = criteron(node_label_predict,node_output_markers)
         loss_node_label.backward()
         
-        # for edge labels loss
-        edge_label_predict = activ_2(edge_label_predict)
-        # k = (torch.Tensor(hello))
-        # index=k.nonzero().view(-1)
-        # u = k.index_select(0,index)
         indexes = edge_output_markers.nonzero().detach().view(-1)
         edge_output_markers = edge_output_markers.index_select(0,indexes)
         edge_output_markers = edge_output_markers.long()
+        # for edge labels loss
+        edge_label_predict = edge_mlp(edge_label_input)
+        edge_label_predict = activ_2(edge_label_predict)
         edge_label_predict = edge_label_predict.index_select(0,indexes)
+        loss_edge_label = criteron(edge_label_predict,edge_output_markers)
+        loss_edge_label.backward()
+        # k = (torch.Tensor(hello))
+        # index=k.nonzero().view(-1)
+        # u = k.index_select(0,index)
         # print(edge_label_predict.size())
         # print(edge_output_markers.size())
         # print(edge_output_markers[:100])
         # exit()
-        loss_edge_label = criteron(edge_label_predict,edge_output_markers)
-        loss_edge_label.backward()
 
         # update deterministic and lstm
 
@@ -201,6 +217,198 @@ def train_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,data_loader,
         feature_dim = y.size(1)*y.size(2)
         loss_sum += loss.data*feature_dim
     return loss_sum/(batch_idx+1)
+
+
+def train_rnn_mlp_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,data_loader,
+                    optimizer_rnn, optimizer_output, optimizer_node_label_mlp, 
+                    optimizer_edge_label_mlp,scheduler_rnn, scheduler_output,
+                    scheduler_node_label_mlp, scheduler_edge_label_mlp):
+    rnn.train()
+    output.train()
+    node_mlp.train()
+    edge_mlp.train()
+    criteron = nn.CrossEntropyLoss().cuda()
+    activ = nn.Softmax(dim=1)
+    activ_2 = nn.Softmax(dim=1)
+    loss_sum = 0
+    node__g_x=None
+    node__g_y=None
+    edge__g_x=None
+    edge__g_y=None
+    for batch_idx, data in enumerate(data_loader):
+        rnn.zero_grad()
+        output.zero_grad()
+        node_mlp.zero_grad()
+        edge_mlp.zero_grad()
+        x_unsorted = data['x'].float()
+        y_unsorted = data['y'].float()
+        lab_unsorted = data['lab'] # 2D matrix
+        y_len_unsorted = data['len']
+        y_len_max = max(y_len_unsorted)
+        x_unsorted = x_unsorted[:, 0:y_len_max, :]
+        y_unsorted = y_unsorted[:, 0:y_len_max, :]
+        edge_unsorted = torch.tensor(y_unsorted,requires_grad=True)
+        y_unsorted[y_unsorted!=0] = 1
+        lab_unsorted = lab_unsorted[:,0:y_len_max]
+        # initialize lstm hidden state according to batch size
+        rnn.hidden = rnn.init_hidden(batch_size=x_unsorted.size(0))
+        # output.hidden = output.init_hidden(batch_size=x_unsorted.size(0)*x_unsorted.size(1))
+
+        # sort input
+        
+        y_len,sort_index = torch.sort(y_len_unsorted,0,descending=True)
+        y_len = y_len.numpy().tolist()
+        x = torch.index_select(x_unsorted,0,sort_index)
+        y = torch.index_select(y_unsorted,0,sort_index)
+        edge_sorted = torch.index_select(edge_unsorted,0,sort_index)
+        lab_sorted = torch.index_select(lab_unsorted,0,sort_index)
+        
+        # input, output for output rnn module
+        # a smart use of pytorch builtin function: pack variable--b1_l1,b2_l1,...,b1_l2,b2_l2,...
+        y_reshape = pack_padded_sequence(y,y_len,batch_first=True).data
+        edge_reshape = pack_padded_sequence(edge_sorted,y_len,batch_first=True).data
+        # reverse y_reshape, so that their lengths are sorted, add dimension
+        idx = [i for i in range(y_reshape.size(0)-1, -1, -1)]
+        idx = torch.LongTensor(idx)
+        y_reshape = y_reshape.index_select(0, idx)
+        y_reshape = y_reshape.view(y_reshape.size(0),y_reshape.size(1),1)
+
+        edge_reshape = edge_reshape.index_select(0, idx)
+        edge_reshape = edge_reshape.view(edge_reshape.size(0),edge_reshape.size(1),1)
+
+        output_x = torch.cat((torch.ones(y_reshape.size(0),1,1),y_reshape[:,0:-1,0:1]),dim=1)
+        output_y = y_reshape
+        # batch size for output module: sum(y_len)
+        output_y_len = []
+        output_y_len_bin = np.bincount(np.array(y_len))
+        for i in range(len(output_y_len_bin)-1,0,-1):
+            count_temp = np.sum(output_y_len_bin[i:]) # count how many y_len is above i
+            output_y_len.extend([min(i,y.size(2))]*count_temp) # put them in output_y_len; max value should not exceed y.size(2)
+        # pack into variable
+        x = Variable(x).cuda()
+        y = Variable(y).cuda()
+        output_x = Variable(output_x).cuda()
+        output_y = Variable(output_y).cuda()
+        edge_reshape = Variable(edge_reshape).cuda()
+        # print(output_y_len)
+        # print('len',len(output_y_len))
+        # print('y',y.size())
+        # print('output_y',output_y.size())
+
+
+        # if using ground truth to train
+        h,graph_level_hidden = rnn(x, pack=True, input_len=y_len, get_hidden=True)
+        # graph_level_hidden = graph_level_hidden.clone()
+        graph_level_hidden = graph_level_hidden.clone().detach()
+        # graph_level_hidden.grad.data.zero_()
+        # print(graph_level_hidden)
+        node_label_input = pack_padded_sequence(graph_level_hidden,y_len,batch_first=True).data
+        # output_mark = lab_sorted.view(-1)
+        node_output_markers = pack_padded_sequence(lab_sorted,y_len,batch_first=True).data
+        node_label_input = Variable(node_label_input).cuda()
+        node_output_markers = Variable(node_output_markers).cuda()
+        h = pack_padded_sequence(h,y_len,batch_first=True).data # get packed hidden vector
+        # reverse h
+        idx = [i for i in range(h.size(0) - 1, -1, -1)]
+        idx = Variable(torch.LongTensor(idx)).cuda()
+        h = h.index_select(0, idx)
+        hidden_null = Variable(torch.zeros(args.num_layers-1, h.size(0), h.size(1))).cuda()
+        output.hidden = torch.cat((h.view(1,h.size(0),h.size(1)),hidden_null),dim=0) # num_layers, batch_size, hidden_size
+        # print(' size of output_hidden is {}'.format(output.hidden.size()))
+        y_pred,edge_level_hidden = output(output_x, pack=True, input_len=output_y_len,get_hidden = True)
+        # edge_level_hidden = edge_level_hidden.clone()
+        edge_level_hidden = edge_level_hidden.clone().detach()
+        edge_label_input = pack_padded_sequence(edge_level_hidden,output_y_len,batch_first=True).data
+        edge_output_markers = pack_padded_sequence(edge_reshape,output_y_len,batch_first=True).data
+        edge_output_markers = edge_output_markers.view(-1)
+        edge_label_input = Variable(edge_label_input).cuda()
+        edge_output_markers = Variable(edge_output_markers).cuda()
+        y_pred = F.sigmoid(y_pred)
+        # clean
+        y_pred = pack_padded_sequence(y_pred, output_y_len, batch_first=True)
+        y_pred = pad_packed_sequence(y_pred, batch_first=True)[0]
+        output_y = pack_padded_sequence(output_y,output_y_len,batch_first=True)
+        output_y = pad_packed_sequence(output_y,batch_first=True)[0]
+        # use cross entropy loss
+        loss = binary_cross_entropy_weight(y_pred, output_y)
+        loss.backward()
+
+        # for node labels loss
+        # node_label_predict = node_mlp(node_label_input)
+        # node_label_predict = activ(node_label_predict)
+        # loss_node_label = criteron(node_label_predict,node_output_markers)
+        # loss_node_label.backward()
+        if batch_idx==0:
+            node__g_x = node_label_input
+            node__g_y = node_output_markers
+        else:
+            node__g_x = torch.cat((node__g_x,node_label_input),dim=0)
+            node__g_y = torch.cat((node__g_y,node_output_markers),dim=0)
+        
+        indexes = edge_output_markers.nonzero().detach().view(-1)
+        edge_output_markers = edge_output_markers.index_select(0,indexes)
+        edge_output_markers = edge_output_markers.long()
+        # for edge labels loss
+        edge_label_input = edge_label_input.index_select(0,indexes)
+        # edge_label_predict = edge_mlp(edge_label_input)
+        # edge_label_predict = activ_2(edge_label_predict)
+        # loss_edge_label = criteron(edge_label_predict,edge_output_markers)
+        # loss_edge_label.backward()
+        if batch_idx==0:
+            edge__g_x = edge_label_input
+            edge__g_y = edge_output_markers
+        else:
+            edge__g_x = torch.cat((edge__g_x,edge_label_input),dim=0)
+            edge__g_y = torch.cat((edge__g_y,edge_output_markers),dim=0)
+        # k = (torch.Tensor(hello))
+        # index=k.nonzero().view(-1)
+        # u = k.index_select(0,index)
+        # print(edge_label_predict.size())
+        # print(edge_output_markers.size())
+        # print(edge_output_markers[:100])
+        # exit()
+
+        # update deterministic and lstm
+
+
+        optimizer_output.step()
+        optimizer_rnn.step()
+        optimizer_node_label_mlp.step()
+        optimizer_edge_label_mlp
+        scheduler_output.step()
+        scheduler_rnn.step()
+        scheduler_node_label_mlp.step()
+        scheduler_edge_label_mlp.step()
+
+
+        if epoch % args.epochs_log==0 and batch_idx==0: # only output first batch's statistics
+            print('Epoch: {}/{}, train loss: {:.6f}, graph type: {}, num_layer: {}, hidden: {}'.format(
+                epoch, args.epochs,loss.data.data,args.graph_type, args.num_layers, args.hidden_size_rnn))
+
+        # logging
+        # print(shape(loss.data))
+        # log_value('loss_'+args.fname, loss.data, epoch*args.batch_ratio+batch_idx)
+        feature_dim = y.size(1)*y.size(2)
+        loss_sum += loss.data*feature_dim
+    
+    
+    for _ in range(1):
+        node__g_pred = node_mlp(node__g_x)
+        node__g_pred = activ(node__g_pred)
+        loss__node = criteron(node__g_pred,node__g_y)
+        loss__node.backward()
+        
+        # for edge labels loss
+        edge__g_pred = edge_mlp(edge__g_x)
+        edge__g_pred = activ_2(edge__g_pred)
+        loss__edge = criteron(edge__g_pred,edge__g_y)
+        loss__edge.backward()
+        if epoch % args.epochs_log==0: # only output first batch's statistics
+            print('Epoch: {}/{}, train label loss: {:.6f}, train edge loss: {:.6f}'.format(
+                epoch, args.epochs,loss__node.data,loss__edge.data))        
+    
+    return loss_sum/(batch_idx+1)
+
 
 def decode_label_adj(adj_output,label_output):
     '''
@@ -239,7 +447,7 @@ def test_rnn_epoch(epoch, args, rnn, output, node_mlp,edge_mlp, test_batch_size=
     y_pred_long = Variable(torch.zeros(test_batch_size, max_num_node, args.max_prev_node)).cuda() # discrete prediction
     edge_pred_long = Variable(torch.zeros(test_batch_size,max_num_node,args.max_prev_node)).cuda() # edge prediction
     x_step = Variable(torch.ones(test_batch_size,1,args.max_prev_node)).cuda()
-    lab_step = Variable(torch.zeros(test_batch_size,args.max_num_node))
+    lab_step = Variable(torch.zeros(test_batch_size,args.max_num_node)).cuda()
     for i in range(max_num_node):
         h,graph_hidden = rnn(x_step,get_hidden=True)
         # output.hidden = h.permute(1,0,2)
@@ -286,6 +494,8 @@ def test_rnn_epoch(epoch, args, rnn, output, node_mlp,edge_mlp, test_batch_size=
             output.hidden = Variable(output.hidden.data).cuda()
         y_pred_long[:, i:i + 1, :] = x_step
         edge_pred_long[:, i:i + 1, :] = edge_step
+        # to pass labelled edges for that node
+        x_step = edge_step
         rnn.hidden = Variable(rnn.hidden.data).cuda()
     y_pred_long_data = y_pred_long.data.long()
 
@@ -293,7 +503,7 @@ def test_rnn_epoch(epoch, args, rnn, output, node_mlp,edge_mlp, test_batch_size=
     G_pred_list = []
     for i in range(test_batch_size):
         adj_pred,lab_pred = decode_label_adj(y_pred_long_data[i].cpu().numpy(),edge_pred_long[i].cpu().numpy())
-        G_pred = get_label_graph(adj_pred,lab_step[i].cpu().numpy().tolist(),lab_pred) # get a graph from zero-padded adj
+        G_pred = get_label_graph(adj_pred,lab_step[i].cpu().numpy(),lab_pred,args) # get a graph from zero-padded adj
         G_pred_list.append(G_pred)
 
     return G_pred_list
@@ -398,6 +608,7 @@ def train(args, dataset_train, rnn, output, node_mlp, edge_mlp):
         epoch = 1
 
     # initialize optimizer
+    global count_graphs
     optimizer_rnn = optim.Adam(list(rnn.parameters()), lr=args.lr)
     optimizer_output = optim.Adam(list(output.parameters()), lr=args.lr)
     optimizer_node_label_mlp = optim.Adam(list(node_mlp.parameters()),lr=args.lr_mlp)
@@ -418,18 +629,20 @@ def train(args, dataset_train, rnn, output, node_mlp, edge_mlp):
         time_end = tm.time()
         time_all[epoch - 1] = time_end - time_start
         # test
-        if epoch % args.epochs_test == 0 and epoch>=args.epochs_test_start:
-            for sample_time in range(1,4):
-                G_pred = []
-                while len(G_pred)<args.test_total_size:
-                    G_pred_step = test_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,test_batch_size=args.test_batch_size)
-                    G_pred.extend(G_pred_step)
-                # save graphs
-                fname = args.graph_save_path + args.fname_pred + str(epoch) +'_'+str(sample_time) + '.dat'
-                save_graph_list(G_pred, fname)
-                if 'GraphRNN_RNN' in args.note:
-                    break
-            print('test done, graphs saved')
+        print(time_all[epoch - 1])
+        # if epoch % args.epochs_test == 0 and epoch>=args.epochs_test_start:
+        #     for sample_time in range(1,4):
+        #         G_pred = []
+        #         count_graphs = 0
+        #         while len(G_pred)<args.test_total_size:
+        #             G_pred_step = test_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,test_batch_size=args.test_batch_size)
+        #             G_pred.extend(G_pred_step)
+        #         # save graphs 
+        #         fname = args.graph_save_path + args.fname_pred + str(epoch) +'_'+str(sample_time) + '.dat'
+        #         save_graph_list(G_pred, fname)
+        #         if 'GraphRNN_RNN' in args.note:
+        #             break
+        #     print('test done, graphs saved')
 
 
         # save model checkpoint
@@ -444,6 +657,19 @@ def train(args, dataset_train, rnn, output, node_mlp, edge_mlp):
                 fname = args.model_save_path + args.fname + 'edge_label_mlp_' + str(epoch) + '.dat'
                 torch.save(edge_mlp.state_dict(), fname)
         epoch += 1
+    
+    # for testing graphs
+    for sample_time in range(1,4):
+        G_pred = []
+        count_graphs = 0
+        while len(G_pred)<args.test_total_size:
+            G_pred_step = test_rnn_epoch(epoch, args, rnn, output, node_mlp, edge_mlp,test_batch_size=args.test_batch_size)
+            G_pred.extend(G_pred_step)
+        # save graphs 
+        fname = args.graph_save_path + args.fname_pred + str(epoch) +'_'+str(sample_time) + '.dat'
+        save_graph_list(G_pred, fname)
+        if 'GraphRNN_RNN' in args.note:
+            break
     np.save(args.timing_save_path+args.fname,time_all)
 
 

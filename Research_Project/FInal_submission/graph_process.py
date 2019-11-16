@@ -34,6 +34,8 @@ def convert_to_networkGraphs(data_file=None):
     data_graph_labels = []
     nodelist_graph = []
     edgelist_graph = []
+    node_reverse_map = []
+    edge_reverse_map = []
     num_node = 0
     num_edge = 0
     flag = 1
@@ -60,26 +62,30 @@ def convert_to_networkGraphs(data_file=None):
         # Reset all the variables
 
         num_node = int(f.readline(), 10)
+        # print('num nodes ',num_node)
         for x in range(num_node):
-          node_iter = f.readline()
-          node_flag = node_label_map.get(node_iter)
+          node_iter = f.readline().split()
+          node_flag = node_label_map.get(node_iter[0])
+          # print(node_iter[0])
           if node_flag is None:
-            node_label_map[node_iter]  = nodelabelcount
+            node_label_map[node_iter[0]]  = nodelabelcount
+            node_reverse_map.append(node_iter[0])
             nodelabelcount = nodelabelcount + 1
           # adding vertex to node_list
-          # nodelist_graph.insert(x, node_label_map.get(node_iter))
-          nodelist_graph.append(node_label_map.get(node_iter))
+          # nodelist_graph.insert(x, node_label_map.get(node_iter[0]))
+          nodelist_graph.append(node_label_map.get(node_iter[0]))
 
         num_edge = int(f.readline())
-
+        # print('num edges ',num_edge)
         for x in range (num_edge):
           edge_iter = f.readline().split()
           # edge = [int(edge_iter[0]) + 1 , int(edge_iter[1]) + 1 ]
-          edge_flag = edge_label_map.get(int(edge_iter[2]))
+          edge_flag = edge_label_map.get((edge_iter[2]))
           if edge_flag is None:
-            edge_label_map[int(edge_iter[2])] = edgelabelcount
+            edge_label_map[(edge_iter[2])] = edgelabelcount
+            edge_reverse_map.append(edge_iter[2])
             edgelabelcount = edgelabelcount + 1
-          edge = [int(edge_iter[0]) , int(edge_iter[1]) , edge_label_map[int(edge_iter[2])] ]
+          edge = [int(edge_iter[0]) , int(edge_iter[1]) , edge_label_map[(edge_iter[2])] ]
           edgelist_graph.append(edge)
 
         edgelist_graph_tuple = list(map(tuple,edgelist_graph))
@@ -92,7 +98,8 @@ def convert_to_networkGraphs(data_file=None):
         total_edge = total_edge + num_edge
         total_node = total_node + num_node
         graphs.append(G)
-    return graphs, nodelabelcount, edgelabelcount,node_label_map,edge_label_map
+        # exit()
+    return graphs, nodelabelcount, edgelabelcount,node_label_map,edge_label_map,node_reverse_map,edge_reverse_map
 '''
 params : network graphs
 returns : adjacency matrices from network graphs

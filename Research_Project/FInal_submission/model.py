@@ -150,8 +150,6 @@ class LabelMLP(nn.Module):
             nn.Linear(layers_size[1], layers_size[2]),
             nn.ReLU(),
             nn.Linear(layers_size[2], layers_size[3]),
-            nn.ReLU(),
-            nn.Linear(layers_size[3], layers_size[4])
         )
 
         for m in self.modules():
@@ -173,7 +171,12 @@ class GRU_plain(nn.Module):
         self.has_output = has_output
 
         if has_input:
-            self.input = nn.Linear(input_size, embedding_size)
+            # self.input = nn.Linear(input_size, embedding_size)
+            self.input = nn.Sequential(
+                nn.Linear(input_size, embedding_size)
+                # nn.ReLU(),
+                # nn.Linear(embedding_size, embedding_size)
+            )
             self.rnn = nn.GRU(input_size=embedding_size, hidden_size=hidden_size, num_layers=num_layers,
                               batch_first=True)
         else:

@@ -1,46 +1,52 @@
 
 ### program configuration
 class Args():
-    def __init__(self):
+    # def __init__(self,graph_type,input_file,epocs=1000):
+    def __init__(self,graph_type=None,input_file=None,
+                epocs=None,batch_size=None,
+                batch_ratio=None,lr_mlp_=None,
+                hidden_size_rnn=None,hidden_size_rnn_output=None,
+                embedding_size_rnn=None,embedding_size_rnn_output=None,
+                embedding_size_output=None):
         self.note = 'GraphRNN_RNN'
-        self.graph_type = 'protein'
+        self.graph_type = graph_type
         #ours
-        self.input_file = 'dataset/500_graph.txt'
+        self.input_file = input_file
         # if none, then auto calculate
         self.max_num_node = None # max number of nodes in a graph
-        self.max_prev_node = None # max previous node that looks back
+        self.max_prev_node = 100 # max previous node that looks back
         self.max_node_labels = None
         self.max_edge_labels = None
         self.edge_mapping = None
         self.node_mapping = None
+        self.node_rev_map = None
+        self.edge_rev_map = None
         ### network config
         ## GraphRNN
-        if 'small' in self.graph_type:
-            self.parameter_shrink = 2
-        else:
-            self.parameter_shrink = 1
-        self.hidden_size_rnn = int(128/self.parameter_shrink) # hidden size for main RNN
-        self.hidden_size_rnn_output = 16 # hidden size for output RNN
-        self.embedding_size_rnn = int(64/self.parameter_shrink) # the size for LSTM input
-        self.embedding_size_rnn_output = 8 # the embedding size for output rnn
-        self.embedding_size_output = int(64/self.parameter_shrink) # the embedding size for output (VAE/MLP)
 
-        self.batch_size = 32 # normal: 32, and the rest should be changed accordingly
+        self.parameter_shrink = 1
+        self.hidden_size_rnn = hidden_size_rnn # hidden size for main RNN
+        self.hidden_size_rnn_output = hidden_size_rnn_output # hidden size for output RNN
+        self.embedding_size_rnn = embedding_size_rnn # the size for LSTM input
+        self.embedding_size_rnn_output = embedding_size_rnn_output # the embedding size for output rnn
+        self.embedding_size_output = embedding_size_output # the embedding size for output (VAE/MLP)
+
+        self.batch_size = batch_size # normal: 32, and the rest should be changed accordingly
         self.test_batch_size = 32
-        self.test_total_size = 1000
+        self.test_total_size = 2560
         self.num_layers = 4
 
         ### training config
-        self.num_workers = 4 # num workers to load data, default 4
-        self.batch_ratio = 32 # how many batches of samples per epoch, default 32, e.g., 1 epoch = 32 batches
-        self.epochs = 1000 # now one epoch means self.batch_ratio x batch_size
+        self.num_workers = 0 # num workers to load data, default 4
+        self.batch_ratio = batch_ratio # how many batches of samples per epoch, default 32, e.g., 1 epoch = 32 batches
+        self.epochs = epocs # now one epoch means self.batch_ratio x batch_size
         self.epochs_test_start = 2
-        self.epochs_test = 3
+        self.epochs_test = 2
         self.epochs_log = 2
-        self.epochs_save = 200
+        self.epochs_save = 50
 
         self.lr = 0.003
-        self.lr_mlp = 0.00002
+        self.lr_mlp = lr_mlp_
         self.milestones = [200, 400, 600]
         self.lr_rate = 0.3
 
